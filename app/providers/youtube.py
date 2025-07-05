@@ -1,10 +1,11 @@
 import re
-from typing import Optional
+from typing import Optional, List
 
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import JSONFormatter
 
 from app.providers.base import BaseProvider, RawCaptions, Segment
+from app.models.api import ChannelVideoInfo
 
 
 class YouTubeProvider(BaseProvider):
@@ -14,6 +15,13 @@ class YouTubeProvider(BaseProvider):
         r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',  # Standard and embedded URLs
         r'(?:embed\/|v\/|youtu.be\/)([0-9A-Za-z_-]{11})',  # Short URLs
         r'(?:watch\?v=)([0-9A-Za-z_-]{11})'  # Standard watch URLs
+    ]
+    
+    CHANNEL_ID_PATTERNS = [
+        r'(?:youtube\.com\/channel\/)([A-Za-z0-9_-]+)',  # Channel ID format
+        r'(?:youtube\.com\/@)([A-Za-z0-9_-]+)',  # Handle format
+        r'(?:youtube\.com\/c\/)([A-Za-z0-9_-]+)',  # Custom channel format
+        r'(?:youtube\.com\/user\/)([A-Za-z0-9_-]+)',  # User format
     ]
 
     async def extract_video_id(self, url: str) -> str:
@@ -121,3 +129,89 @@ class YouTubeProvider(BaseProvider):
 
         except Exception as e:
             raise RuntimeError(f"Failed to download audio: {str(e)}")
+
+    async def extract_channel_id(self, url: str) -> str:
+        """Extract channel ID from YouTube channel URL.
+        
+        Args:
+            url: The YouTube channel URL in various possible formats
+            
+        Returns:
+            The extracted channel ID
+            
+        Raises:
+            ValueError: If the URL is invalid or no channel ID found
+        """
+        for pattern in self.CHANNEL_ID_PATTERNS:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+        
+        raise ValueError(f"Invalid YouTube channel URL: {url}")
+
+    async def get_channel_videos(self, channel_url: str, limit: Optional[int] = 50) -> List[ChannelVideoInfo]:
+        """Get list of videos from a YouTube channel.
+        
+        Args:
+            channel_url: The YouTube channel URL
+            limit: Maximum number of videos to return (default: 50)
+            
+        Returns:
+            List of ChannelVideoInfo objects containing video information
+            
+        Raises:
+            ValueError: If the channel URL is invalid
+            RuntimeError: If video extraction fails
+        """
+        try:
+            # Extract channel ID for validation
+            channel_id = await self.extract_channel_id(channel_url)
+            
+            from yt_dlp import YoutubeDL
+            
+            # Ensure we're getting the videos tab specifically
+            if '/videos' not in channel_url:
+                if channel_url.endswith('/'):
+                    videos_url = f"{channel_url}videos"
+                else:
+                    videos_url = f"{channel_url}/videos"
+            else:
+                videos_url = channel_url
+            
+            # Configure yt-dlp to extract video info only
+            ydl_opts = {
+                'quiet': True,
+                'no_warnings': True,
+                'extract_flat': True,  # Get basic info without downloading
+                'playlistend': limit,
+                'ignoreerrors': True,
+                'playlistreverse': False,  # Get latest videos first
+            }
+            
+            with YoutubeDL(ydl_opts) as ydl:
+                # Extract channel videos
+                info = ydl.extract_info(videos_url, download=False)
+                
+                if not info or 'entries' not in info:
+                    return []
+                
+                videos = []
+                for entry in info['entries']:
+                    if not entry:  # Skip None entries
+                        continue
+                        
+                    video_info = ChannelVideoInfo(
+                        video_id=entry.get('id', ''),
+                        title=entry.get('title', ''),
+                        description=entry.get('description'),
+                        upload_date=entry.get('upload_date'),
+                        duration=entry.get('duration'),
+                        view_count=entry.get('view_count'),
+                        url=entry.get('webpage_url', f"https://www.youtube.com/watch?v={entry.get('id', '')}")
+                    )
+                    videos.append(video_info)
+                
+                return videos[:limit] if limit else videos
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to get channel videos: {str(e)}")

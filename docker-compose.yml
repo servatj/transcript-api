@@ -1,6 +1,15 @@
 version: '3.8'
 
 services:
+  proxy:
+    build:
+      context: ../proxy-server
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
   api:
     build: .
     ports:

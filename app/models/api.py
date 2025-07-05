@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, HttpUrl
 
@@ -58,4 +58,68 @@ class TranscriptResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Error response model."""
-    detail: str 
+    detail: str
+
+
+class ChannelVideoInfo(BaseModel):
+    """Information about a video in a YouTube channel."""
+    video_id: str
+    title: str
+    description: Optional[str] = None
+    upload_date: Optional[str] = None
+    duration: Optional[int] = None
+    view_count: Optional[int] = None
+    url: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "video_id": "dQw4w9WgXcQ",
+                "title": "Rick Astley - Never Gonna Give You Up",
+                "description": "The official video for 'Never Gonna Give You Up'",
+                "upload_date": "20091025",
+                "duration": 212,
+                "view_count": 1000000000,
+                "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            }
+        }
+
+
+class ChannelVideosRequest(BaseModel):
+    """Request model for channel videos endpoint."""
+    channel_url: HttpUrl
+    limit: Optional[int] = 50
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "channel_url": "https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw",
+                "limit": 20
+            }
+        }
+
+
+class ChannelVideosResponse(BaseModel):
+    """Response model for channel videos endpoint."""
+    channel_id: str
+    videos: List[ChannelVideoInfo]
+    total_count: int
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "channel_id": "UC_x5XG1OV2P6uZZ5FSM9Ttw",
+                "videos": [
+                    {
+                        "video_id": "dQw4w9WgXcQ",
+                        "title": "Rick Astley - Never Gonna Give You Up",
+                        "description": "The official video for 'Never Gonna Give You Up'",
+                        "upload_date": "20091025",
+                        "duration": 212,
+                        "view_count": 1000000000,
+                        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                    }
+                ],
+                "total_count": 1
+            }
+        } 
