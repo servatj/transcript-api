@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, List
 
 from app.core.deps import check_rate_limit, get_redis, verify_api_key
-from app.core.whisper import whisper_service
 from app.models.api import (ErrorResponse, Provider, TranscriptRequest,
                           TranscriptResponse, TranscriptSegment)
 from app.providers.tiktok import TikTokProvider
@@ -42,7 +41,7 @@ EXAMPLE_URLS = {
         },
         404: {
             "model": ErrorResponse,
-            "description": "No captions available and Whisper transcription failed or not configured"
+            "description": "No captions available for this video"
         },
         500: {
             "model": ErrorResponse,
@@ -57,7 +56,7 @@ EXAMPLE_URLS = {
     The endpoint will:
     1. Try to get native captions in English
     2. If no English captions, try to get captions in other languages and translate to English
-    3. If no captions available, fallback to OpenAI Whisper transcription (if configured)
+    3. If no captions available, return 404 error
     
     Rate limiting is applied per provider and client IP.
     Results are cached for 1 hour.
@@ -105,34 +104,13 @@ async def get_transcript(
         # Get captions
         captions = await provider.download_captions(video_id)
         
-        # Fallback to audio transcription with Whisper if no captions
+        # Check if captions are available
         if not captions:
-            if not whisper_service.is_available:
-                logger.warning(
-                    f"No native captions found for {request.provider} video {video_id}, "
-                    f"and Whisper transcription is not available (OPENAI_API_KEY not set)"
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="No captions available and Whisper transcription is not configured"
-                )
-            
-            try:
-                logger.info(f"No native captions found for {request.provider} video {video_id}, using Whisper fallback")
-                audio_data = await provider.download_audio(video_id)
-                captions = await whisper_service.transcribe_audio(audio_data)
-                
-                if not captions:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail="Whisper transcription failed"
-                    )
-            except Exception as e:
-                logger.error(f"Whisper fallback failed: {str(e)}")
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="No captions available and whisper transcription failed"
-                )
+            logger.info(f"No captions found for {request.provider} video {video_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No captions available for this video"
+            )
 
         # Create response
         response = TranscriptResponse(
@@ -158,6 +136,9 @@ async def get_transcript(
 
         return response
 
+    except HTTPException:
+        # Re-raise HTTPExceptions (like 404 Not Found) without modification
+        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

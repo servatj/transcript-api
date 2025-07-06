@@ -50,17 +50,4 @@ class BaseProvider(ABC):
         """
         pass
 
-    @abstractmethod
-    async def download_audio(self, video_id: str) -> bytes:
-        """Download audio for a video.
-        
-        Args:
-            video_id: The video ID
-            
-        Returns:
-            The audio data as bytes
-            
-        Raises:
-            RuntimeError: If audio download fails
-        """
-        pass 
+ 

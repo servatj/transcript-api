@@ -41,8 +41,7 @@ youtube_provider = YouTubeProvider()
             "description": "Internal server error"
         },
     },
-    # Temporarily remove dependencies for testing
-    # dependencies=[Depends(verify_api_key), Depends(check_rate_limit)],
+    dependencies=[Depends(verify_api_key), Depends(check_rate_limit)],
     summary="Get YouTube Channel Videos",
     description="""
     Get a list of videos from a YouTube channel.

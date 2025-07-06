@@ -10,4 +10,3 @@ python-dotenv>=1.0.0
 structlog>=23.2.0
 youtube-transcript-api>=0.6.0
 httpx>=0.25.0
-yt_dlp>=2024.08.18

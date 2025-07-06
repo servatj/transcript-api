@@ -56,35 +56,54 @@ class YouTubeProvider(BaseProvider):
             RuntimeError: If caption download fails
         """
         try:
-            # Get available transcripts
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            # Add some delay to avoid rate limiting
+            import time
+            time.sleep(0.5)
             
-            # Try to get English transcript, fallback to auto-translated
+            # Try to get English transcript directly first
             try:
-                transcript = transcript_list.find_transcript(['en'])
-            except:
+                transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+            except Exception:
+                # If direct English not available, try more comprehensive approach
                 try:
-                    transcript = transcript_list.find_manually_created_transcript()
-                    transcript = transcript.translate('en')
-                except:
-                    try:
-                        transcript = transcript_list.find_generated_transcript()
-                        transcript = transcript.translate('en')
-                    except:
-                        return None
-
-            # Get transcript data
-            transcript_data = transcript.fetch()
+                    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                    
+                    # Try to find a transcript that can be translated to English
+                    for transcript_item in transcript_list:
+                        if transcript_item.is_translatable:
+                            translated_transcript = transcript_item.translate('en')
+                            transcript_data = translated_transcript.fetch()
+                            break
+                    else:
+                        # If no translatable transcript, get any available transcript
+                        available_transcripts = list(transcript_list)
+                        if available_transcripts:
+                            transcript_data = available_transcripts[0].fetch()
+                        else:
+                            return None
+                except Exception:
+                    return None
             
-            # Convert to segments
-            segments = [
-                Segment(
-                    start=float(entry['start']),
-                    end=float(entry['start'] + entry['duration']),
-                    text=entry['text']
-                )
-                for entry in transcript_data
-            ]
+            # Convert to segments - handle both dict and object formats
+            segments = []
+            for entry in transcript_data:
+                # Handle both dict and object formats
+                if isinstance(entry, dict):
+                    start = float(entry['start'])
+                    duration = float(entry.get('duration', 0))
+                    text = entry['text']
+                else:
+                    # Handle object format
+                    start = float(entry.start)
+                    duration = float(getattr(entry, 'duration', 0))
+                    text = entry.text
+                
+                end_time = start + duration
+                segments.append(Segment(
+                    start=start,
+                    end=end_time,
+                    text=text
+                ))
             
             # Create full text
             full_text = " ".join(seg.text for seg in segments)
@@ -95,40 +114,19 @@ class YouTubeProvider(BaseProvider):
             )
 
         except Exception as e:
+            # For XML parsing errors and other transcript issues, return None instead of raising
+            error_msg = str(e).lower()
+            if any(phrase in error_msg for phrase in [
+                "no element found",
+                "xml.etree.elementtree.parseerror", 
+                "subtitles are disabled",
+                "could not retrieve a transcript",
+                "transcript not available"
+            ]):
+                return None
+            # For other unexpected errors, still raise
             raise RuntimeError(f"Failed to download captions: {str(e)}")
 
-    async def download_audio(self, video_id: str) -> bytes:
-        """Download audio from YouTube video.
-        
-        Args:
-            video_id: The YouTube video ID
-            
-        Returns:
-            The audio data as bytes
-            
-        Raises:
-            RuntimeError: If audio download fails
-        """
-        try:
-            from yt_dlp import YoutubeDL
-            
-            # Configure yt-dlp to download audio only
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'quiet': True,
-                'no_warnings': True,
-                'outtmpl': '-',  # Output to stdout
-                'logtostderr': True,
-            }
-            
-            with YoutubeDL(ydl_opts) as ydl:
-                # Download to memory
-                url = f"https://www.youtube.com/watch?v={video_id}"
-                audio_data = ydl.download([url])
-                return audio_data
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to download audio: {str(e)}")
 
     async def extract_channel_id(self, url: str) -> str:
         """Extract channel ID from YouTube channel URL.

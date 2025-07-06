@@ -66,24 +66,4 @@ class TikTokProvider(BaseProvider):
         except Exception as e:
             raise RuntimeError(f"Failed to download captions: {str(e)}")
 
-    async def download_audio(self, video_id: str) -> bytes:
-        """Download audio from TikTok video."""
-        try:
-            video_url = f"https://www.tiktok.com/video/{video_id}"
-            
-            # Configure yt-dlp to download audio only
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'quiet': True,
-                'no_warnings': True,
-                'outtmpl': '-',  # Output to stdout
-                'logtostderr': True,
-            }
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # Download to memory
-                audio_data = ydl.download([video_url])
-                return audio_data
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to download audio: {str(e)}") 
+ 

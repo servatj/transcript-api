@@ -1,0 +1,31 @@
+name: Deploy to Digital Ocean (No Docker Hub)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to Digital Ocean
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.DO_HOST }}
+        username: ${{ secrets.DO_USERNAME }}
+        key: ${{ secrets.DO_SSH_KEY }}
+        script: |
+          # Navigate to project directory
+          cd /opt/transcript-api
+          
+          # Pull latest code from GitHub
+          git pull origin main
+          
+          # Rebuild and restart containers
+          docker-compose down
+          docker-compose build --no-cache
+          docker-compose up -d
+          
+          # Clean up old images
+          docker image prune -f
