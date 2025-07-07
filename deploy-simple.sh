@@ -22,7 +22,7 @@ if [ -d ".git" ]; then
     git pull origin main
 else
     echo "📥 Cloning repository..."
-    git clone https://github.com/YOUR_USERNAME/transcript-api.git .
+    git clone https://github.com/$GITHUB_REPOSITORY.git .
 fi
 
 # Create environment file

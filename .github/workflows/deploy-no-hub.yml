@@ -19,6 +19,7 @@ jobs:
           # Set environment variables for deployment
           export API_KEY="${{ secrets.API_KEY }}"
           export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
+          export GITHUB_REPOSITORY="${{ github.repository }}"
           
           # Download and run deployment script
           curl -o deploy-simple.sh https://raw.githubusercontent.com/${{ github.repository }}/main/deploy-simple.sh
