@@ -1,15 +1,4 @@
-version: '3.8'
-
 services:
-  proxy:
-    build:
-      context: ../proxy-server
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    depends_on:
-      - api
-
   api:
     build: .
     ports:
@@ -18,10 +7,7 @@ services:
       - API_KEY=${API_KEY}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - TIKTOK_SESSION_ID=${TIKTOK_SESSION_ID}
-      - INSTAGRAM_USERNAME=${INSTAGRAM_USERNAME}
-      - INSTAGRAM_PASSWORD=${INSTAGRAM_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     depends_on:
       - redis
 
