@@ -1,6 +1,6 @@
 services:
   api:
-    build: .
+    image: ${IMAGE_TAG:-ghcr.io/josepl/playground/transcript-services/transcript-api:latest}
     ports:
       - "8000:8000"
     environment:

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Simple Digital Ocean Deployment (No Docker Hub)
+# Digital Ocean Deployment with GitHub Container Registry
 set -e
 
-echo "🚀 Deploying Transcript API to Digital Ocean (No Docker Hub)..."
+echo "🚀 Deploying Transcript API to Digital Ocean (GitHub Container Registry)..."
 
 # Create deployment directory
 sudo mkdir -p /opt/transcript-api
@@ -16,7 +16,7 @@ if ! command -v git &> /dev/null; then
     sudo apt install -y git
 fi
 
-# Clone or update repository
+# Clone or update repository (for docker-compose.yml and .env setup)
 if [ -d ".git" ]; then
     echo "📥 Updating repository..."
     git pull origin main
@@ -48,10 +48,14 @@ if ! command -v docker-compose &> /dev/null; then
     sudo chmod +x /usr/local/bin/docker-compose
 fi
 
-# Build and start services
-echo "🏗️ Building and starting services..."
+# Login to GitHub Container Registry (public images don't require auth, but good practice)
+echo "🔐 Logging into GitHub Container Registry..."
+echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin 2>/dev/null || echo "Note: GHCR login failed, assuming public image"
+
+# Pull latest image and start services
+echo "🏗️ Pulling latest image and starting services..."
 docker-compose down || true
-docker-compose build --no-cache
+docker pull ${IMAGE_TAG} || echo "Pull failed, will use cached image"
 docker-compose up -d
 
 # Setup UFW firewall

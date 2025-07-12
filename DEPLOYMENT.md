@@ -31,8 +31,6 @@ doctl compute droplet create transcript-api \
 Add these secrets to your GitHub repository:
 
 ```
-DOCKER_USERNAME=your_dockerhub_username
-DOCKER_PASSWORD=your_dockerhub_password
 DO_HOST=your_droplet_ip
 DO_USERNAME=root
 DO_SSH_KEY=your_private_ssh_key
@@ -40,25 +38,32 @@ API_KEY=your_secure_api_key
 OPENAI_API_KEY=optional_openai_key
 ```
 
+**Note**: Docker credentials are no longer needed as we use GitHub Container Registry (GHCR) which uses the built-in `GITHUB_TOKEN`.
+
 ### 3. Manual Deployment (One-time)
 SSH into your droplet and run:
 
 ```bash
 # Download and run deployment script
-curl -o deploy.sh https://raw.githubusercontent.com/YOUR_USERNAME/transcript-api/main/deploy.sh
-chmod +x deploy.sh
+curl -o deploy-simple.sh https://raw.githubusercontent.com/YOUR_USERNAME/transcript-api/main/deploy-simple.sh
+chmod +x deploy-simple.sh
 
 # Set environment variables
-export DOCKER_USERNAME=your_dockerhub_username
 export API_KEY=your_secure_api_key
 export OPENAI_API_KEY=your_openai_key  # optional
+export GITHUB_REPOSITORY=your_username/transcript-api
+export IMAGE_TAG=ghcr.io/your_username/transcript-api:latest
 
 # Run deployment
-./deploy.sh
+./deploy-simple.sh
 ```
 
 ### 4. GitHub Actions Auto-Deploy
-After manual setup, every push to `main` branch will auto-deploy via GitHub Actions.
+After manual setup, every push to `main` branch will:
+1. **Build** Docker image and push to GitHub Container Registry (GHCR)
+2. **Deploy** by pulling the new image to Digital Ocean and restarting services
+
+The workflow uses GitHub Container Registry at `ghcr.io/your_username/transcript-api:latest`.
 
 ## Testing Deployment
 
